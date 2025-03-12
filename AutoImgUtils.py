@@ -2,9 +2,46 @@ import numpy as np
 from skimage import measure, draw, color, feature
 from skimage.segmentation import watershed, find_boundaries
 from skimage.filters import threshold_otsu, threshold_local, threshold_mean, threshold_minimum
+import tkinter as tk
+from tkinter.filedialog import askopenfilename,askdirectory
 import matplotlib.pyplot as plt
 from scipy import ndimage as ndi
 import math
+
+
+def select_folder():
+    """
+    This function opens a dialog box to select a folder path.
+
+    Returns:
+    str: The folder path selected
+    """
+    root = tk.Tk()
+    root.withdraw()  # We don't want a full GUI, so keep the root window from appearing
+    folder_path = askdirectory(title="Select Folder with Channel TIFF Images")
+    root.destroy()
+    return folder_path
+
+def select_folders():
+    """
+    This function opens a dialog box to select multiple folder paths.
+    
+    Returns:
+    list: A list of folder paths selected by the user.
+    """
+    root = tk.Tk()
+    root.withdraw()  # We don't want a full GUI, so keep the root window from appearing
+    folder_list = []
+    
+    while True:
+        folder = askdirectory(title="Select Folder Containing Channel TIFF Images")
+        if folder:
+            folder_list.append(folder)
+        else:
+            break  # User cancelled the dialog
+    
+    root.destroy()
+    return list(set(folder_list))  # Remove duplicates
 
 def normalize(image):
     """
@@ -139,6 +176,7 @@ def bg_substraction_ROI_single_ch(image, background_threshold = None, channel_of
     # Define background threshold, by standard deviation from the mean, if not provided
     if background_threshold is None:
             background_threshold = np.mean(bg_subs_image_single_ch) - 0.2 * np.std(bg_subs_image_single_ch)
+            # print(f'Background threshold for channel {channel_of_interest+1}: {background_threshold}')
             if background_threshold < 0:
                 background_threshold = np.min(bg_subs_image_single_ch) + 0.01 * np.std(bg_subs_image_single_ch)
             print(f'Background threshold for channel {channel_of_interest+1}: {background_threshold}')
@@ -211,8 +249,9 @@ def watershed_rois(binary):
     local_max = feature.peak_local_max(distance, labels=binary, footprint=np.ones((3, 3)))
     
     # Create markers for watershed
-    markers = measure.label(local_max)
-    # print(f"The distance shape is {distance.shape} and the markers shape is {(np.asanyarray(markers) * binary).shape}")
+    mask = np.zeros(distance.shape, dtype=bool)
+    mask[tuple(local_max.T)] = True
+    markers, _ = ndi.label(mask)
 
     # Apply watershed
     labels = watershed(
