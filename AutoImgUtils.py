@@ -8,6 +8,18 @@ import matplotlib.pyplot as plt
 from scipy import ndimage as ndi
 import math
 
+def select_file():
+    """
+    This function opens a dialog box to select a file path.
+
+    Returns:
+    str: The file path selected
+    """
+    root = tk.Tk()
+    root.withdraw()  # We don't want a full GUI, so keep the root window from appearing
+    file_path = askopenfilename(title="Select Reference Image File")
+    root.destroy()
+    return file_path
 
 def select_folder():
     """
