@@ -21,6 +21,27 @@ def select_file():
     root.destroy()
     return file_path
 
+def select_files():
+    """
+    This function opens a dialog box to select multiple file paths.
+    
+    Returns:
+    list: A list of file paths selected by the user.
+    """
+    root = tk.Tk()
+    root.withdraw()  # We don't want a full GUI, so keep the root window from appearing
+    file_list = []
+    
+    while True:
+        file = askopenfilename(title="Select Reference Image File")
+        if file:
+            file_list.append(file)
+        else:
+            break  # User cancelled the dialog
+    
+    root.destroy()
+    return list(set(file_list))  # Remove duplicates
+
 def select_folder():
     """
     This function opens a dialog box to select a folder path.
