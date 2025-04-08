@@ -76,21 +76,57 @@ def select_folders():
     root.destroy()
     return list(set(folder_list))  # Remove duplicates
 
-def normalize(image):
+def normalize_img(image, method = 'minmax'):
     """
-    This function normalizes a given image array.
-    
-    Normalization is the process of scaling individual samples to have a mean of 0 and a standard deviation of 1.
-    In this case, the function scales the pixel values of the image to be between 0 and 1.
+    This function normalizes a given image array individually per channel.
     
     Parameters:
     image (numpy.ndarray): A numpy array representing the image to be normalized.
-    
+    method (str): The normalization method to use. Default is 'minmax'.
+        'minmax' scales the pixel values to be between 0 and 1.
+        'zscore' standardizes the pixel values to have a mean of 0 and a standard deviation of 1.
+        'percentile' scales the pixel values to be between the 1st and 99th percentiles.
+
     Returns:
     numpy.ndarray: The normalized image array with pixel values between 0 and 1.
     """
+    if image.ndim == 2:
+        image = np.expand_dims(image, axis=-1)  # Add channel dimension if not present
+        sing_ch = True
+    else:
+        sing_ch = False
 
-    return (image - np.min(image)) / (np.max(image) - np.min(image))
+    for ch in range(image.shape[-1]):
+        image[..., ch] = image[..., ch].astype(np.float32)  # Ensure float type for division
+
+        if method == 'minmax':
+            min_val = np.min(image[..., ch])
+            max_val = np.max(image[..., ch])
+            if max_val - min_val > 0:
+                image[..., ch] = (image[..., ch] - min_val) / (max_val - min_val)
+            else:
+                image[..., ch] = 0
+        elif method == 'zscore':
+            mean_val = np.mean(image[..., ch])
+            std_val = np.std(image[..., ch])
+            if std_val > 0:
+                image[..., ch] = (image[..., ch] - mean_val) / std_val
+            else:
+                image[..., ch] = 0
+        elif method == 'percentile':
+            p1 = np.percentile(image[..., ch], 1)
+            p99 = np.percentile(image[..., ch], 99)
+            if p99 - p1 > 0:
+                image[..., ch] = (image[..., ch] - p1) / (p99 - p1 + 1e-8) # Avoid division by zero
+            else:
+                image[..., ch] = 0
+        else:
+            raise ValueError(f"Unsupported normalization method: {method}")
+        
+    if sing_ch:
+        image = np.squeeze(image, axis=-1)  # Remove channel dimension if single channel image
+
+    return image
 
 def bg_substraction_ROI(image, background_threshold=None, display_rois=True):
     """
@@ -155,7 +191,7 @@ def bg_substraction_ROI(image, background_threshold=None, display_rois=True):
         
         if display_rois:
             # Display background ROIs on the current channel
-            roi_image = np.stack([normalize(channel)]*3, axis=-1)  # Convert to RGB
+            roi_image = np.stack([normalize_img(channel)]*3, axis=-1)  # Convert to RGB
             for roi in background_rois:
                 x, y, w, h = roi
                 rr, cc = draw.rectangle_perimeter((y, x), extent=(h, w), shape=channel.shape)
@@ -231,7 +267,7 @@ def bg_substraction_ROI_single_ch(image, background_threshold = None, channel_of
     
     if display_rois: 
         # Display background ROIs on channel of interest
-        background_roi_image = np.stack([normalize(bg_subs_image_single_ch)]*3, axis=-1)  # Convert to RGB
+        background_roi_image = np.stack([normalize_img(bg_subs_image_single_ch)]*3, axis=-1)  # Convert to RGB
 
         for roi in background_rois:
             x, y, w, h = roi
@@ -368,7 +404,7 @@ def plot_rois(image, labels, props, rois, roi_type, title=None):
     """
     Display ROIs with consistent visualization across detection methods.
     """
-    display_img = np.stack([normalize(image)]*3, axis=-1)
+    display_img = np.stack([normalize_img(image)]*3, axis=-1)
     
     # Draw boundaries based on labels
     boundaries = find_boundaries(labels)
@@ -411,7 +447,7 @@ def thresholding(image, th_method='otsu', roi_type='watershed', display_rois=Fal
     """
 
     # Convert image to grayscale
-    gray_image = normalize(np.mean(image, axis=2))
+    gray_image = normalize_img(np.mean(image, axis=2))
     
     # Thresholding
     if th_method == 'otsu':
@@ -432,7 +468,7 @@ def thresholding(image, th_method='otsu', roi_type='watershed', display_rois=Fal
     # Display original, grayscale, and binary images side by side
     plt.figure(figsize=(15, 4))
     plt.subplot(131)
-    plt.imshow(normalize(image[:, :, :3]))
+    plt.imshow(normalize_img(image[:, :, :3]))
     plt.title('Original Image')
     plt.subplot(132)
     plt.imshow(gray_image, cmap='gray')
