@@ -76,6 +76,31 @@ def select_folders():
     root.destroy()
     return list(set(folder_list))  # Remove duplicates
 
+def normalize(data, method='minmax'):
+    """
+    Normalize the pixel values of an data to a specified range or distribution.
+
+    Parameters:
+    data (numpy.ndarray): The input data to be normalized.
+    method (str): The normalization method to use. Default is 'minmax'.
+        'minmax' scales the pixel values to be between 0 and 1.
+        'zscore' standardizes the pixel values to have a mean of 0 and a standard deviation of 1.
+        'percentile' scales the pixel values to be between the 1st and 99th percentiles.
+
+    Returns:
+    numpy.ndarray: The normalized image.
+    """
+    if method == 'minmax':
+        return (data - np.min(data)) / (np.max(data) - np.min(data))
+    elif method == 'zscore':
+        return (data - np.mean(data)) / np.std(data)
+    elif method == 'percentile':
+        p1 = np.percentile(data, 1)
+        p99 = np.percentile(data, 99)
+        return (data - p1) / (p99 - p1 + 1e-8)  # Avoid division by zero
+    else:
+        raise ValueError(f"Unsupported normalization method: {method}")
+
 def normalize_img(image, method = 'minmax'):
     """
     This function normalizes a given image array individually per channel.
